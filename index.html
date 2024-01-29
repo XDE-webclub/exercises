@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Content</title>
+    <style>
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.hidden {
+    display: none;
+}
+
+.container {
+    display: flex;
+    min-height: 75vh;
+}
+
+.content {
+    flex: 1;
+    display: flex;
+}
+/* Webkit 内核浏览器的滚动条样式 */
+.left-div::-webkit-scrollbar,
+.right-div::-webkit-scrollbar {
+    width: 8px;
+}
+
+.left-div::-webkit-scrollbar-thumb,
+.right-div::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 5px;
+}
+
+.left-div::-webkit-scrollbar-track,
+.right-div::-webkit-scrollbar-track {
+    background-color: #eee;
+}
+
+.left-div, .right-div {
+    flex: 1;
+    padding: 20px;
+    border: 2px solid #ddd;
+    margin: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 5px;
+    overflow-y: auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #555 #eee;
+}
+
+.left-div {
+    background-color: #fff;
+    font-size: 18px;
+    color: #333;
+}
+
+.right-div {
+    background-color: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 16px;
+    color: #444;
+}
+
+
+.welcome-message {
+    background: linear-gradient(to right, #1901f0, #FF6B6B);
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+footer {
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    position: sticky;
+    bottom: 0;
+}
+
+footer button {
+    margin: 0 10px;
+    padding: 8px 16px;
+    text-decoration: none;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    background-color: #555;
+    color: #fff;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+footer button:hover {
+    background-color: #333;
+}
+
+.options-container {
+    padding: 20px;
+
+}
+
+.options-container label {
+    margin-right: 10px;
+    color: #555;
+    font-size: 16px;
+}
+
+
+#change-problem,#jump-btn  {
+    background: linear-gradient(to right, #FF6B6B, #1901f0);
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#content-container {
+    margin: 0 auto;
+    padding: 20px;
+}
+
+
+
+/* Hide the scrollbar */
+::-webkit-scrollbar {
+    width: 0;
+}
+
+/* Optional: If you need to change scrollbar color */
+::-webkit-scrollbar-thumb {
+    background-color: transparent;
+}
+
+::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+
+/* Fieldset and legend styles */
+fieldset {
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+legend {
+    color: #3E12DB;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+label {
+    margin: 0 10px;
+    color: #555;
+    font-size: 18px;
+}
+
+button {
+    padding: 10px;
+    background: linear-gradient(to right, #1901f0, #FF6B6B);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+input[type="checkbox"],
+input[type="number"] {
+    margin-right: 5px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+    </style>
+</head>
+
+<body>
+    <div class="welcome-message">欢迎来到 <span style="font-weight: bold;">mini-leetcode</span></div>
+
+    <div class="options-container">
+        <fieldset>
+            <legend>题型选择</legend>
+
+            <label for="easy">
+                <input type="checkbox" id="easy" name="difficulty" value="easy" checked>
+                easy
+            </label>
+
+            <label for="medium">
+                <input type="checkbox" id="medium" name="difficulty" value="medium">
+                medium
+            </label>
+
+            <label for="office">
+                <input type="checkbox" id="office" name="difficulty" value="medium">
+                office
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>
+                <span id="current-problem">第<span id="current-problem-number">1</span>题</span>
+                <span id="total-problems">共<span id="total-problems-number">0</span>题</span>
+            </legend>
+            
+            <button id="change-problem">换一题</button>
+            <button id="prev-problem">上一题</button>
+            <button id="next-problem">下一题</button>
+
+            <button id="hide-solution">隐藏/展示 题解</button>
+
+            <label for="jump-to-problem">跳转到第
+                <input type="number" id="jump-to-problem" min="1" max="99" placeholder="1">题
+            </label>
+            <button id="jump-btn">跳转</button>
+        </fieldset>
+    </div>
+
+    <div id="content-container"></div>
+
+    <script>
+        // 获取元素的简便函数
+        const getElement = (id) => document.getElementById(id);
+
+        // 创建元素对象
+        const createElements = () => ({
+            easy: getElement("easy"),
+            medium: getElement("medium"),
+            office: getElement("office"),
+            contentContainer: getElement("content-container"),
+            hideSolutionBtn: getElement("hide-solution"),
+            changeProblemBtn: getElement("change-problem"),
+            prevProblemBtn: getElement("prev-problem"),
+            nextProblemBtn: getElement("next-problem"),
+            jumpToProblemInput: getElement("jump-to-problem"),
+            jumpBtn: getElement("jump-btn"),
+            currentProblemNumber: getElement("current-problem-number"),
+            totalProblemsNumber: getElement("total-problems-number"),
+        });
+
+        // 事件监听器的添加
+        const addEventListeners = () => {
+            ELEMENTS.jumpBtn.addEventListener("click", () => jumpToProblem(data));
+            ELEMENTS.hideSolutionBtn.addEventListener("click", toggleSolutionVisibility);
+            ELEMENTS.changeProblemBtn.addEventListener("click", loadChangeProblem);
+            ELEMENTS.prevProblemBtn.addEventListener("click", () => loadPrevProblem(data));
+            ELEMENTS.nextProblemBtn.addEventListener("click", () => loadNextProblem(data));
+        };
+
+        const API_URL = 'https://raw.githubusercontent.com/XDE-webclub/exercises/main/data_file.json';
+
+        let currentProblemIndex = 0;
+        let data;
+        const ELEMENTS = createElements();
+        addEventListeners();
+
+        async function fetchData(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+            return response.json();
+        }
+
+        async function init() {
+            try {
+                data = await fetchData(API_URL);
+                handleJsonData(data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function handleJsonData(data) {
+            const randomProblem = getRandomProblem(data);
+            currentProblemIndex = data.indexOf(randomProblem);
+            updatePageWithRandomData(randomProblem);
+        }
+
+        function updatePageWithRandomData(randomProblem) {
+            const { title, level, description, python_code } = randomProblem;
+            const { contentContainer, currentProblemNumber, totalProblemsNumber } = ELEMENTS;
+            const filteredData = filterProblemsByDifficulty(false);
+
+            const htmlContent = `
+                <div class="container">
+                    <div class="left-div">
+                        <div class="pre-container">
+                            <h2>${title}</h2>
+                            <p>难度：${level}</p>
+                            <h3>描述</h3>
+                            <pre>${description}</pre>
+                        </div>
+                    </div>
+                    <div class="right-div">
+                        <h3>题解</h3>
+                        <div class="pre-container hidden" id="solution-content">
+                            <pre id="codeBlock" class="collapsed">${python_code}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+            contentContainer.innerHTML = htmlContent;
+
+            // 更新当前题号和总题数 
+            const currentIndex = filteredData.indexOf(randomProblem) + 1;
+            currentProblemNumber.textContent = currentIndex;
+            totalProblemsNumber.textContent = filteredData.length;
+        }
+
+
+        function toggleSolutionVisibility() {
+            const totalProblemsContainer = getElement("solution-content");
+            totalProblemsContainer.classList.toggle("hidden");
+        }
+
+        function filterProblemsByDifficulty(set_alert = true) {
+            const { easy, medium, office } = ELEMENTS;
+            
+            // 检查至少一个题型被选择
+            if (!easy.checked && !medium.checked && !office.checked) {
+                if (set_alert === true) {
+                    alert("请至少选择一个题型！");
+                }
+                return data;
+            }
+
+            return data.filter(problem => {
+                if (easy.checked && problem.level === "easy") {
+                    return true;
+                } else if (medium.checked && problem.level === "medium") {
+                    return true;
+                } else if (office.checked && problem.level === "office") {
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        function getRandomProblem(data) {
+            const filteredData = filterProblemsByDifficulty();
+
+            return filteredData.length > 0
+                ? filteredData[Math.floor(Math.random() * filteredData.length)]
+                : data[Math.floor(Math.random() * data.length)];
+        }
+
+        function loadChangeProblem() {
+            const new_data = filterProblemsByDifficulty();
+            handleJsonData(new_data);
+        }
+
+        function loadPrevProblem() {
+            const new_data = filterProblemsByDifficulty();
+            currentProblemIndex = (currentProblemIndex - 1 + new_data.length) % new_data.length;
+            updatePageWithRandomData(new_data[currentProblemIndex]);
+        }
+
+        function loadNextProblem() {
+            const new_data = filterProblemsByDifficulty();
+            currentProblemIndex = (currentProblemIndex + 1) % new_data.length;
+            updatePageWithRandomData(new_data[currentProblemIndex]);
+        }
+
+        function jumpToProblem() {
+            const new_data = filterProblemsByDifficulty();
+            const jumpToProblemNumber = parseInt(ELEMENTS.jumpToProblemInput.value, 10);
+            
+            if (isNaN(jumpToProblemNumber) || jumpToProblemNumber < 1 || jumpToProblemNumber > new_data.length) {
+                alert("请输入有效的问题号！");
+                return;
+            }
+
+            currentProblemIndex = jumpToProblemNumber - 1;
+            updatePageWithRandomData(new_data[currentProblemIndex]);
+        }
+
+        init();
+
+    </script>
+</body>
+
+</html>

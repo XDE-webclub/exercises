@@ -1,0 +1,36 @@
+name: Auto Run Get Source Script
+
+on:
+  push:
+    paths:
+      - 'source_data/**'  # 只有 source_data 目录下的文件发生更改时才执行
+
+jobs:
+  run_get_source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # 拉取完整的提交历史
+
+    - name: Install Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run get_source.js
+      run: node get_source.js
+
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.email "github-actions@users.noreply.github.com"
+        git config --global user.name "GitHub Actions"
+        git add data_file.json
+        git commit -m "Update data_file.json" || true
+        git push
