@@ -28,7 +28,7 @@
 
 > 本地使用请手动执行`node get_source.js`，将md文件转换为json文件。推荐VsCode插件`Code Runner`
 
-2. 修改`script.js`中的`apiUrl = 'https://raw.githubusercontent.com/XDE-webclub/exercises/main/data_file.json';`为自己的json文件地址
+2. 修改`script.js`中的`apiUrl = 'https://raw.githubusercontent.com/XDE-webclub/exercises/master/data_file.json';`为自己的json文件地址
 
 > 示例：`'https://raw.githubusercontent.com/用户名/项目名/main/文件地址'`
 
