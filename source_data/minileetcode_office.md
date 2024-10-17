@@ -491,211 +491,263 @@ def ipynb2md(wpt, save_path=""):
 
 ### 题解（Python）
 ```python
-
-from PyPDF2 import PdfFileWriter, PdfFileReader, PdfFileMerger
+from PyPDF2 import PdfWriter, PdfReader, PdfMerger
+from pathlib import Path
 import os
-from PyPDF2 import PdfFileReader, PdfFileMerger
 
 
-def get_reader(filename, password):
-    try:
-        old_file = open(filename, "rb")
-    except IOError as err:
-        print("文件打开失败！" + str(err))
-        return None
+class PdfManager:
+    """PDF 文件管理器，提供加密、解密、分割、合并等功能"""
 
-    pdf_reader = PdfFileReader(old_file, strict=False)  # 创建读实例
-    # 解密操作
-    if pdf_reader.isEncrypted:
-        if password is None:
-            print("%s文件被加密，需要密码！" % filename)
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def open_pdf_file(filename: Path, mode: str = "rb"):
+        """使用上下文管理器打开PDF文件"""
+        return filename.open(mode)
+
+    @staticmethod
+    def get_reader(filename: Path, password: str = None) -> PdfReader:
+        """获取PDF阅读器实例"""
+        try:
+            with PdfManager.open_pdf_file(filename, "rb") as old_file:
+                pdf_reader = PdfReader(old_file, strict=False)
+                if pdf_reader.is_encrypted:
+                    if password is None or not pdf_reader.decrypt(password):
+                        print(f"{filename} 文件被加密或密码不正确！")
+                        return None
+                return pdf_reader
+        except IOError as err:
+            print(f"文件打开失败！{err}")
             return None
-        else:
-            if pdf_reader.decrypt(password) != 1:
-                print("%s密码不正确！" % filename)
-                return None
-    if old_file in locals():
-        old_file.close()
-    return pdf_reader
 
+    @staticmethod
+    def write_pdf(writer: PdfWriter, filename: Path):
+        """写入PDF文件"""
+        with filename.open("wb") as output_file:
+            writer.write(output_file)
 
-def encrypt_pdf(filename, new_password, old_password=None, encrypted_filename=None):
-    """对filename所对应的文件进行加密,并生成一个新的文件
-    :param filename: 文件对应的路径
-    :param new_password: 对文件加密使用的密码
-    :param old_password: 如果旧文件进行了加密，需要密码
-    :param encrypted_filename: 加密之后的文件名，省却时使用filename_encrypted;
-    :return:"""
-
-    pdf_reader = get_reader(filename, old_password)  # 创建一个Reader实例
-    if pdf_reader is None:
-        return
-    pdf_writer = PdfFileWriter()  # 创建一个写操作的实例
-    pdf_writer.appendPagesFromReader(pdf_reader)  # 从之前Reader中将数据写入到Writer中
-    pdf_writer.encrypt(new_password)  # 重新使用新密码加密
-    if encrypted_filename is None:
-        encrypted_filename = (
-            "".join(filename.split(".")[:-1]) + "_" + "encrypted" + ".pdf"
-        )  # 使用旧文件名 + encrypted 作为新的文件名
-    pdf_writer.write(open(encrypted_filename, "wb"))
-
-
-def decrypt_pdf(filename, password, decrypted_filename=None):
-    """将加密的文件及逆行解密，并生成一个无需密码pdf文件
-    :param filename: 原先加密的pdf文件
-    :param password: 对应的密码
-    :param decrypted_filename: 解密之后的文件名
-    :return:"""
-    pdf_reader = get_reader(filename, password)  # 生成一个Reader和Writer
-    if pdf_reader is None:
-        return
-    if not pdf_reader.isEncrypted:
-        print("文件没有被加密，无需操作！")
-        return
-    pdf_writer = PdfFileWriter()
-    pdf_writer.appendPagesFromReader(pdf_reader)
-    if decrypted_filename is None:
-        decrypted_filename = (
-            "".join(filename.split(".")[:-1]) + "_" + "decrypted" + ".pdf"
-        )
-    pdf_writer.write(open(decrypted_filename, "wb"))  # 写入新文件
-
-
-def split_by_pages(filename, pages, password=None):
-    """将文件按照页数进行平均分割
-    :param filename: 所要分割的文件名
-    :param pages: 分割之后每个文件对应的页数
-    :param password: 如果文件加密，需要进行解密操作
-    :return:"""
-    pdf_reader = get_reader(filename, password)  # 得到Reader
-    if pdf_reader is None:
-        return
-    pages_nums = pdf_reader.numPages  # 得到总的页数
-    if pages <= 1:
-        print("每份文件必须大于1页！")
-        return
-    pdf_num = (
-        pages_nums // pages + 1 if pages_nums % pages else int(pages_nums / pages)
-    )  # 得到切分之后每个pdf文件的页数
-    print("pdf文件被分为%d份，每份有%d页！" % (pdf_num, pages))
-    for cur_pdf_num in range(1, pdf_num + 1):  # 依次生成pdf文件
-        pdf_writer = PdfFileWriter()  # 创建一个新的写实例
-        split_pdf_name = (
-            "".join(filename)[:-1] + "_" + str(cur_pdf_num) + ".pdf"
-        )  # 生成对应的文件名称
-        start = pages * (cur_pdf_num - 1)  # 计算出当前开始的位置
-        end = (
-            pages * cur_pdf_num if cur_pdf_num != pdf_num else pages_nums
-        )  # 计算出结束的位置，如果是最后一份就直接返回最后的页数，否则用每份页数*已经分好的文件数
-        # print(str(start) + ',' + str(end))
-        for i in range(start, end):  # 依次读取对应的页数
-            pdf_writer.addPage(pdf_reader.getPage(i))
-        pdf_writer.write(open(split_pdf_name, "wb"))  # 写入文件
-
-
-def split_by_num(filename, nums, password=None):
-    """将pdf文件分为nums份
-    :param filename: 文件名
-    :param nums: 要分成的份数
-    :param password: 如果需要解密，输入密码
-    :return:"""
-    pdf_reader = get_reader(filename, password)
-    if not pdf_reader:
-        return
-    if nums < 2:
-        print("份数不能小于2！")
-        return
-    pages = pdf_reader.numPages  # 得到pdf的总页数
-    if pages < nums:
-        print("份数不应该大于pdf总页数！")
-        return
-    each_pdf = pages // nums  # 计算每份应该有多少页
-    print("pdf共有%d页，分为%d份，每份有%d页！" % (pages, nums, each_pdf))
-
-    for num in range(1, nums + 1):
-        pdf_writer = PdfFileWriter()  # 生成对应的文件名称
-        split_pdf_name = "".join(filename)[:-1] + "_" + str(num) + ".pdf"  # 计算出当前开始的位置
-        start = each_pdf * (num - 1)  # 计算出结束的位置，如果是最后一份就直接返回最后的页数，否则用每份页数*已经分好的文件数
-        end = each_pdf * num if num != nums else pages
-        print(str(start) + "," + str(end))
-        for i in range(start, end):
-            pdf_writer.addPage(pdf_reader.getPage(i))
-        pdf_writer.write(open(split_pdf_name, "wb"))
-
-
-def merger_pdf(filenames, merged_name, passwords=None):
-    """传进来一个文件列表，将其依次融合起来
-    :param filenames: 文件列表
-    :param passwords: 对应的密码列表
-    :return:"""
-    filenums = len(filenames)  # 计算共有多少文件
-    pdf_merger = PdfFileMerger(False)  # 注意需要使用False 参数
-    for i in range(filenums):
-        if passwords is None:  # 得到密码
-            password = None
-        else:
-            password = passwords[i]
-        pdf_reader = get_reader(filenames[i], password)
-        if not pdf_reader:
+    def encrypt_pdf(
+        self,
+        filename: Path,
+        new_password: str,
+        old_password: str = None,
+        encrypted_filename: Path = None,
+    ):
+        """对PDF文件进行加密"""
+        pdf_reader = self.get_reader(filename, old_password)
+        if pdf_reader is None:
             return
-        pdf_merger.append(pdf_reader)  # append默认添加到最后
-    pdf_merger.write(open(merged_name, "wb"))
 
+        pdf_writer = PdfWriter()
+        pdf_writer.append_pages_from_reader(pdf_reader)
+        pdf_writer.encrypt(new_password)
 
-def insert_pdf(pdf1, pdf2, insert_num, merged_name, password1=None, password2=None):
-    """将pdf2全部文件插入到pdf1中第insert_num页
-    :param pdf1: pdf1文件名称
-    :param pdf2: pdf2文件名称
-    :param insert_num: 插入的页数
-    :param merged_name: 融合后的文件名称
-    :param password1: pdf1对应的密码
-    :param password2: pdf2对应的密码
-    :return:"""
-    pdf1_reader = get_reader(pdf1, password1)
-    pdf2_reader = get_reader(pdf2, password2)
-    if not pdf1_reader or not pdf2_reader:  # 如果有一个打不开就返回
-        return
-    pdf1_pages = pdf1_reader.numPages  # 得到pdf1的总页数
-    if insert_num < 0 or insert_num > pdf1_pages:
-        print("插入位置异常，想要插入的页数为：%d，pdf1文件共有：%d页！" % (insert_num, pdf1_pages))
-        return
-    m_pdf = PdfFileMerger(False)  # 注意需要使用False参数，可能会出现中文乱码的情况
-    m_pdf.append(pdf1)
-    m_pdf.merge(insert_num, pdf2)
-    m_pdf.write(open(merged_name, "wb"))
+        if encrypted_filename is None:
+            encrypted_filename = filename.with_name(f"{filename.stem}_encrypted.pdf")
 
+        self.write_pdf(pdf_writer, encrypted_filename)
+        print(f"加密后的文件保存为: {encrypted_filename}")
 
-def auto_input(path,result_name): #合并PDF为一份
-    result_pdf= PdfFileMerger() #新建实例对象
-    for pdf in os.listdir(path):  #遍历文件夹
-        with open (pdf,'rb') as fp:  # 打开要合并的子PDF
-            pdf_reder = PdfFileReader(fp)  #读取PDF内容
-            if pdf_reder.isEncrypted:   # 判断是否被加密
-                print(f'忽略加密文件：{pdf}')  # 如果加密则跳过，并打印忽略加密文件
+    def decrypt_pdf(
+        self,
+        filename: Path,
+        password: str,
+        decrypted_filename: Path = None,
+    ):
+        """将加密的PDF文件解密"""
+        pdf_reader = self.get_reader(filename, password)
+        if pdf_reader is None:
+            return
+
+        if not pdf_reader.is_encrypted:
+            print("文件没有被加密，无需操作！")
+            return
+
+        pdf_writer = PdfWriter()
+        pdf_writer.append_pages_from_reader(pdf_reader)
+
+        if decrypted_filename is None:
+            decrypted_filename = filename.with_name(f"{filename.stem}_decrypted.pdf")
+
+        self.write_pdf(pdf_writer, decrypted_filename)
+        print(f"解密后的文件保存为: {decrypted_filename}")
+
+    def split_by_pages(
+        self,
+        filename: Path,
+        pages_per_split: int,
+        password: str = None,
+    ):
+        """将PDF文件按照页数进行分割"""
+        pdf_reader = self.get_reader(filename, password)
+        if pdf_reader is None:
+            return
+
+        total_pages = len(pdf_reader.pages)
+        if pages_per_split < 1:
+            print("每份文件必须至少包含1页！")
+            return
+
+        num_splits = (total_pages + pages_per_split - 1) // pages_per_split
+        print(f"PDF 文件将被分为 {num_splits} 份，每份最多 {pages_per_split} 页。")
+
+        for split_num in range(num_splits):
+            pdf_writer = PdfWriter()
+            start = split_num * pages_per_split
+            end = min(start + pages_per_split, total_pages)
+            for page in range(start, end):
+                pdf_writer.add_page(pdf_reader.pages[page])
+
+            split_filename = filename.with_name(f"{filename.stem}_part{split_num + 1}.pdf")
+            self.write_pdf(pdf_writer, split_filename)
+            print(f"生成: {split_filename}")
+
+    def split_by_num(
+        self,
+        filename: Path,
+        num_splits: int,
+        password: str = None,
+    ):
+        """将PDF文件分为指定份数"""
+        pdf_reader = self.get_reader(filename, password)
+        if pdf_reader is None:
+            return
+
+        total_pages = len(pdf_reader.pages)
+        if num_splits < 2:
+            print("份数不能小于2！")
+            return
+        if total_pages < num_splits:
+            print("份数不应该大于PDF总页数！")
+            return
+
+        pages_per_split = total_pages // num_splits
+        extra_pages = total_pages % num_splits
+        print(
+            f"PDF 共有 {total_pages} 页，将分为 {num_splits} 份，每份基本有 {pages_per_split} 页。"
+        )
+
+        start = 0
+        for split_num in range(1, num_splits + 1):
+            pdf_writer = PdfWriter()
+            # 分配多余的页面到前几个分割
+            end = start + pages_per_split + (1 if split_num <= extra_pages else 0)
+            for page in range(start, end):
+                pdf_writer.add_page(pdf_reader.pages[page])
+
+            split_filename = filename.with_name(f"{filename.stem}_part{split_num}.pdf")
+            self.write_pdf(pdf_writer, split_filename)
+            print(f"生成: {split_filename}")
+            start = end
+
+    def merge_pdfs(
+        self,
+        filenames: list,
+        merged_name: Path,
+        passwords: list = None,
+    ):
+        """将多个PDF文件合并为一个"""
+        if passwords and len(passwords) != len(filenames):
+            print("密码列表长度必须与文件列表长度一致！")
+            return
+
+        merger = PdfMerger()
+
+        for idx, file in enumerate(filenames):
+            password = passwords[idx] if passwords else None
+            pdf_reader = self.get_reader(file, password)
+            if not pdf_reader:
+                print(f"跳过文件: {file}")
                 continue
-            result_pdf.append(pdf_reder,import_bookmarks = True) # 将刚刚读取到的PDF内容追加到实例对象内
-    result_pdf.write(result_name) # 写入保存
-    result_pdf.close()    # 关闭程序
+            merger.append(pdf_reader)
+            print(f"已合并: {file}")
+
+        with merged_name.open("wb") as f_out:
+            merger.write(f_out)
+        print(f"合并后的文件保存为: {merged_name}")
+
+    def insert_pdf(
+        self,
+        pdf1: Path,
+        pdf2: Path,
+        insert_page_num: int,
+        merged_name: Path,
+        password1: str = None,
+        password2: str = None,
+    ):
+        """将pdf2插入到pdf1的指定页后"""
+        pdf1_reader = self.get_reader(pdf1, password1)
+        pdf2_reader = self.get_reader(pdf2, password2)
+        if not pdf1_reader or not pdf2_reader:
+            return
+
+        total_pages_pdf1 = len(pdf1_reader.pages)
+        if not (0 <= insert_page_num <= total_pages_pdf1):
+            print(
+                f"插入位置异常，插入页数为：{insert_page_num}，PDF1文件共有：{total_pages_pdf1} 页！"
+            )
+            return
+
+        merger = PdfMerger()
+        with PdfManager.open_pdf_file(pdf1, "rb") as f_pdf1:
+            merger.append(f_pdf1, pages=(0, insert_page_num))
+        with PdfManager.open_pdf_file(pdf2, "rb") as f_pdf2:
+            merger.append(f_pdf2)
+        with PdfManager.open_pdf_file(pdf1, "rb") as f_pdf1:
+            merger.append(f_pdf1, pages=(insert_page_num, len(pdf1_reader.pages)))
+
+        with merged_name.open("wb") as f_out:
+            merger.write(f_out)
+        print(f"插入后的文件保存为: {merged_name}")
+
+    def auto_merge(self, path: Path, result_name: Path = None):
+        """自动合并指定目录下的所有PDF文件"""
+        if not path.is_dir():
+            print(f"{path} 不是一个有效的目录！")
+            return
+
+        merged_filename = result_name or path / "合并.pdf"
+        merger = PdfMerger()
+
+        pdf_files = sorted(path.glob("*.pdf"))
+        for pdf in pdf_files:
+            pdf_reader = self.get_reader(pdf)
+            if pdf_reader is None:
+                print(f"忽略加密文件或无法读取的文件: {pdf}")
+                continue
+            merger.append(pdf_reader, import_outline=True)
+            print(f"已合并: {pdf}")
+
+        with merged_filename.open("wb") as f_out:
+            merger.write(f_out)
+        print(f"\n合并完成，文件保存为: {merged_filename}")
+
+
+def main():
+    manager = PdfManager()
+
+    # 示例调用
+    manager.encrypt_pdf(Path('ex1.pdf'), new_password='leafage')
+    manager.decrypt_pdf(Path('ex1123_encrypted.pdf'), password='leafage')
+    manager.split_by_pages(Path('ex1.pdf'), pages_per_split=5)
+    manager.split_by_num(Path('原子习惯.pdf'), num_splits=2)
+    manager.merge_pdfs(
+        filenames=[Path('ex1.pdf'), Path('ex2.pdf')],
+        merged_name=Path('merged.pdf')
+    )
+    manager.insert_pdf(
+        pdf1=Path('ex1.pdf'),
+        pdf2=Path('ex2.pdf'),
+        insert_page_num=10,
+        merged_name=Path('pdf12.pdf')
+    )
+    manager.auto_merge(Path("PDF"))
 
 
 if __name__ == "__main__":
-    # 加密
-    # encrypt_pdf('ex1.pdf', 'leafage')
-
-    # 解密
-    # decrypt_pdf('ex1123_encrypted.pdf', 'leafage')
-
-    # 按页数拆分
-    # split_by_pages('ex1.pdf', 5)
-
-    # 按拆分后的文件数拆分
-    split_by_num("示例.pdf", 2)
-
-    # 合并PDF文件
-    # merger_pdf(['ex1.pdf', 'ex2.pdf'], 'merger.pdf')
-
-    # 插入PDF至指定位置
-    # insert_pdf('ex1.pdf', 'ex2.pdf', 10, 'pdf12.pdf')
+    main()
 ```
 
 ## PDF添加水印
