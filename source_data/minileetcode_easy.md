@@ -326,7 +326,7 @@ def partition(arr, low: int, high: int):
 
 
 def quick_sort_between(arr, low: int, high: int):
-    if high-low <= 1:  # 递归结束条件
+    if high-low < 1:  # 递归结束条件
         return
 
     m = partition(arr, low, high)
